@@ -12,17 +12,34 @@ def get_text():
         browser = p.chromium.launch()
         page = browser.new_page()
         page.goto(URL, wait_until="networkidle", timeout=60000)
-        page.wait_for_timeout(5000)
+        page.wait_for_timeout(8000)
         text = page.inner_text("body")
         browser.close()
     return text
 
 def extract(text):
-    m = re.search(r"(\d+)\s*(?:min|minute)", text, re.IGNORECASE)
+    # Match "1 hour 30 minutes", "1 hr 30 min", "90 minutes", "45 min", etc.
+    m = re.search(
+        r"(\d+)\s*(?:hour|hr)s?\s*(?:(\d+)\s*(?:minute|min))?",
+        text, re.IGNORECASE
+    )
+    if m:
+        hours = int(m.group(1))
+        mins = int(m.group(2)) if m.group(2) else 0
+        return str(hours * 60 + mins)
+    m = re.search(r"(\d+)\s*(?:minute|min)", text, re.IGNORECASE)
     return m.group(1) if m else ""
 
 def main():
     text = get_text()
+
+    # TEMPORARY: print every line mentioning wait/hour/min so we can see the real spot
+    print("===== DEBUG: relevant lines =====")
+    for line in text.splitlines():
+        if re.search(r"wait|hour|hr|min", line, re.IGNORECASE):
+            print(repr(line))
+    print("===== END DEBUG =====")
+
     wait = extract(text)
     ts = datetime.now(timezone.utc).isoformat()
 
